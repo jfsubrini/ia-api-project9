@@ -10,7 +10,6 @@ This REST API has been deployed on Heroku (https://ia-api-project9.herokuapp.com
 # Importation of libraries.
 from collections import defaultdict
 import pickle5 as pickle
-import pandas as pd
 import uvicorn
 from fastapi import FastAPI
 
@@ -18,8 +17,7 @@ from fastapi import FastAPI
 # Creating the app object.
 app = FastAPI()
 
-# Creating DataFrames, loading .csv files.
-df_cb = pd.read_csv('df_cb.csv', sep=',', low_memory=False)
+# Loading the prediction model.
 prediction_cf_model = pickle.load(open('prediction_cf_model.pkl', 'rb'))
 
 ### UTIL FUNCTIONS ###

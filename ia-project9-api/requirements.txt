@@ -1,6 +1,5 @@
 fastapi
 gunicorn
-pandas
 pickle5
 scikit-learn
 uvicorn
