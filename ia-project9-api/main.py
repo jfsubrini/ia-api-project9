@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=consider-using-with
 """
-Created by Jean-François Subrini on the 17th of March 2023.
-Creation of a simple sentiment analysis REST API 
-using the FastAPI framework and a Content-Based approach (created in the Jupyter Notebook).
-This REST API has been deployed on Azure Web App (https://ia-project9.azurewebsites.net).  TODO
+Created by Jean-François Subrini on the 8th of April 2023.
+Creation of a simple sentiment analysis REST API using the FastAPI framework 
+and a Model-Based Collaborative Filtering approach, with the SVD algorithm, 
+created in the Subrini_JeanFrancois_2_scripts_012023.ipynb Jupyter Notebook.
+This REST API has been deployed on Heroku (https://ia-api-project9.herokuapp.com).
 """
 # Importation of libraries.
+from collections import defaultdict
+import pickle5 as pickle
 import pandas as pd
 import uvicorn
 from fastapi import FastAPI
-from sklearn.metrics.pairwise import cosine_similarity
 
 
 # Creating the app object.
@@ -17,50 +20,42 @@ app = FastAPI()
 
 # Creating DataFrames, loading .csv files.
 df_cb = pd.read_csv('df_cb.csv', sep=',', low_memory=False)
-df_embed = pd.read_csv('df_embed.csv', sep=',', low_memory=False)
+prediction_cf_model = pickle.load(open('prediction_cf_model.pkl', 'rb'))
 
 ### UTIL FUNCTIONS ###
-def mean_embeddings(art_list):
-    """Function to calculate the mean embeddings with a list of article ids.
+def get_top_n(predictions, num=5):
+    """Return the top-N recommendation for each user from a set of predictions.
+    Args:
+        predictions(list of Prediction objects): The list of predictions, as
+            returned by the test method of an algorithm.
+        num(int): The number of recommendation to output for each user. Default is 5.
+    Returns:
+    A dict where keys are user (raw) ids and values are lists of tuples:
+        [(raw item id, rating estimation), ...] of size num. Raw means as in the data_cf file.
     """
-    # Selecting the only embeddings of the articles list.
-    df_emb = df_embed.iloc[art_list, :]
+    # Mapping the predictions to each user.
+    top_n = defaultdict(list)
+    for uid, iid, _, est, _ in predictions:
+        top_n[uid].append((iid, est))
 
-    # Calculating the mean embeddings, the synthesis of all articles.
-    mean_emb = df_emb.mean()
+    # Then sorting the predictions for each user and retrieving the n highest ones.
+    for uid, user_ratings in top_n.items():
+        user_ratings.sort(key=lambda x: x[1], reverse=True)
+        top_n[uid] = user_ratings[:num]
 
-    # Transpose the result into a dataframe with one row (article)
-    # and 250 columns (embedding vector).
-    mean_emb = mean_emb.to_frame().transpose()
+    return top_n
 
-    return mean_emb
-
-def cb_recommender(user_id, top_n=5):
-    """Function to return the top N articles recommendation for an user id,
-    using a Content-Based filtering Recommender System, based on embeddings.
-    The returned list, by default 5 articles ids, is sorted by confidence descending.
+def prediction_for_user(user_id, num=5):
+    """Return the list of 5 (by default, or num value) recommended articles for a user id.
     """
-    # Creating a list of article ids with the read articles by the user.
-    user_art_list = df_cb.loc[
-        df_cb['user_id'] == user_id]['article_id'].to_list()
+    # Predicting ratings for all pairs (user, item) that are not in the training set.
+    top_n = get_top_n(prediction_cf_model, num=num)
 
-    # Calculating the mean of these read articles embeddings,
-    # weighted by the number of clicks on each article, creating a 'synthetic article'.
-    mean_emb = mean_embeddings(user_art_list)
-
-    # Calculating cosine similarity between the 'synthetic article' and
-    # all the other articles, with the embeddings vectors.
-    # Results into a dataframe, excluding the already read articles.
-    cosine_sim = cosine_similarity(df_embed, mean_emb)
-    df_cosine_sim = pd.DataFrame(cosine_sim, columns=['cosine_sim'])
-    df_cosine_sim = df_cosine_sim.drop(index=user_art_list)
-
-    # Selecting the N closest articles, the ones with higher cosine.
-    top_n_art_sim = df_cosine_sim.sort_values(
-        by='cosine_sim', ascending=False).head(top_n)
-    top_n_articles_list = top_n_art_sim.index.tolist()
-
-    return top_n_articles_list
+    # Printing the recommended items (article ids) for the user id selected.
+    reco_list_u = []
+    for i in top_n[user_id]:
+        reco_list_u.append(i[0])
+    return reco_list_u
 ###---###
 
 # Index route, opens automatically on http://127.0.0.1:8000.
@@ -69,7 +64,7 @@ def cb_recommender(user_id, top_n=5):
 @app.get('/')
 def index():
     """Welcome message"""
-    return {'message': 'This is a content-based firltering recommender system app.'}
+    return {'message': 'This is a content-based filtering recommender system app.'}
 
 # Route with a selected user id parameter, returns the 5 articles recommendation for that user.
 # Located at: http://127.0.0.1:8000/recommender/?select_user_id=
@@ -77,11 +72,8 @@ def index():
 # Located at: http://127.0.0.1:8000/docs
 @app.get('/recommender/')
 def recommender(select_user_id: str):
-    """Get a 5 articles recommendation for a selected user id."""
-    # 5 articles recommendation list for a specific user id.
-    print("select_user_id API : ", select_user_id, type(select_user_id))
-    reco = cb_recommender(int(select_user_id))
-    print("RECO API : ", reco)
+    """Get a 5 articles recommendation list for a selected user id."""
+    reco = prediction_for_user(int(select_user_id), num=5)
     return {'reco': reco}
 
 
