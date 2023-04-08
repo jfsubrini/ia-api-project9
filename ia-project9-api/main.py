@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=consider-using-with
 """
 Created by Jean-François Subrini on the 8th of April 2023.
 Creation of a simple sentiment analysis REST API using the FastAPI framework 
@@ -17,8 +16,6 @@ from fastapi import FastAPI
 # Creating the app object.
 app = FastAPI()
 
-# Loading the prediction model.
-prediction_cf_model = pickle.load(open('prediction_cf_model.pkl', 'rb'))
 
 ### UTIL FUNCTIONS ###
 def get_top_n(predictions, num=5):
@@ -46,10 +43,15 @@ def get_top_n(predictions, num=5):
 def prediction_for_user(user_id, num=5):
     """Return the list of 5 (by default, or num value) recommended articles for a user id.
     """
-    # Predicting ratings for all pairs (user, item) that are not in the training set.
-    top_n = get_top_n(prediction_cf_model, num=num)
+    # Loading the prediction model.
+    # Opening the prediction file.
+    with open('pred_cf', 'rb') as file:
+        # Loading information from that file.
+        prediction_cf_model = pickle.load(file)
+        # Predicting ratings for all pairs (user, item) that are not in the training set.
+        top_n = get_top_n(prediction_cf_model, num=num)
 
-    # Printing the recommended items (article ids) for the user id selected.
+    # Creating the recommended article ids list for the user id selected.
     reco_list_u = []
     for i in top_n[user_id]:
         reco_list_u.append(i[0])
