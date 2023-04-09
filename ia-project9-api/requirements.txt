@@ -1,5 +1,4 @@
-fastapi
-gunicorn
-pickle5
-scikit-learn
-uvicorn
+fastapi==0.94.1
+gunicorn==20.1.0
+pickle5=0.0.11
+uvicorn==0.20.0
