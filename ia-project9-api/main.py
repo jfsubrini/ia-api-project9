@@ -34,7 +34,7 @@ def get_top_n(predictions, num=5):
     for uid, iid, _, est, _ in predictions:
         top_n[uid].append((iid, est))
 
-    # Then sorting the predictions for each user and retrieving the n highest ones.
+    # Then sorting the predictions for each user and retrieving the n (num) highest ones.
     for uid, user_ratings in top_n.items():
         user_ratings.sort(key=lambda x: x[1], reverse=True)
         top_n[uid] = user_ratings[:num]
@@ -42,7 +42,8 @@ def get_top_n(predictions, num=5):
     return top_n
 
 def prediction_for_user(user_id, num=5):
-    """Return the list of 5 (by default, or num value) recommended articles for a specific user id.
+    """Return the list of 5 (by default, or num value) recommended articles 
+    for a specific user id.
     """
     # Loading the prediction model.
     # Opening the prediction file.
@@ -50,7 +51,7 @@ def prediction_for_user(user_id, num=5):
         # Loading information from that file.
         prediction_cf_model = pickle.load(file)
         # Predicting the top-N (num, 5 by default) recommendation articles for each user
-        # from a set of predictions that were in the test dataset, not in the training dataset.
+        # from a set of predictions that were in the test dataset, NOT in the training dataset.
         top_n = get_top_n(prediction_cf_model, num=num)
 
     # Creating the recommended article ids list for the user id selected.
